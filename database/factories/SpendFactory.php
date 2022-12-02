@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Branch;
+use App\Models\Spend;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,8 +18,12 @@ class SpendFactory extends Factory
      */
     public function definition()
     {
+        $branches = Branch::pluck('id')->all();
         return [
-            //
+            'type' => $this->faker->randomElement(Spend::TYPES_SPEND),
+            'description' => $this->faker->paragraph(2),
+            'amount' => $this->faker->numerify('######'),
+            'branch_id' => $this->faker->randomElement($branches)
         ];
     }
 }

@@ -15,7 +15,17 @@ return new class extends Migration
     {
         Schema::create('spends', function (Blueprint $table) {
             $table->id();
+            $table->string('type');
+            $table->text('description');
+            $table->string('amount');
             $table->timestamps();
+            $table->unsignedBigInteger('branch_id');
+
+            $table
+                ->foreign('branch_id')
+                ->on('branches')
+                ->references('id')
+                ->onDelete('cascade');
         });
     }
 

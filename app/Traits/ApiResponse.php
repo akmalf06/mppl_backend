@@ -8,12 +8,14 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -66,163 +68,53 @@ trait ApiResponse
         return response()->json($contents, $code, [], JSON_UNESCAPED_SLASHES);
     }
 
-    /**
-     * Send error response.
-     *
-     * @param string|array $message
-     * @param string $status
-     * @param int $code
-     * @param Throwable|null $exception
-     *
-     * @return JsonResponse
-     */
-    public function sendError(
-        string|array $message,
-        string $status = "Error",
-        int $code = 400,
-        Throwable|null $exception = null,
-    ): JsonResponse {
-        $content = [
-            "code" => $code,
-            "status" => $status,
-            "message" => $message,
-        ];
-
-        // Show error trace if exception parameter is given.
-        if ($exception) {
-            $content = array_merge($content, [
-                "exception" => get_class($exception),
-                "file" => $exception->getFile(),
-                "line" => $exception->getLine(),
-                "trace" => collect($exception->getTrace())
-                    ->map(static function ($trace): array {
-                        return Arr::except($trace, ["args"]);
-                    })
-                    ->all(),
-            ]);
-        }
-
-        return response()->json($content, $code, [], JSON_UNESCAPED_SLASHES);
-    }
-
-    /**
-     * Handle exception.
-     *
-     * @param Throwable $exception
-     * @return JsonResponse
-     */
-    public function handleApiException(
-        Throwable $exception,
-        $request,
-    ): JsonResponse {
-        $request_id_code = "";
-        if ($request) {
-            // generating request unique id
-            $mytime = Carbon::now();
-            $time = $mytime->toDateTimeString();
-            $request_id = $request->ip() . " " . $time;
-            $request_id_code = Str::upper(Str::substr(md5($request_id), 0, 8));
-        } else {
-            $request_id_code = "None";
-        }
-
-        Log::error(
-            date("Y-m-d H:i:s") . " " . $request_id_code . " " . $exception,
-        );
-
-        return $this->sendError(
-            $this->getErrorMessage($exception, $request_id_code),
-            $this->getStatusMessage($exception),
-            $this->getApiErrorCode($exception),
-            config("app.debug", false) ? $exception : null,
-        );
-    }
-
-    /**
-     * Get API error status message.
-     *
-     * @param Throwable $exception
-     * @return string
-     */
-    private function getStatusMessage(Throwable $exception): string
+    public function sendError($message, $status = 'Error', $code = 400): JsonResponse
     {
-        if ($exception instanceof AuthenticationException) {
-            return "Unauthenticated.";
-        }
-
-        if ($exception instanceof AuthorizationException) {
-            return "Unauthorized.";
-        }
-
-        return "Error";
+        return response()->json([
+            'code' => $code,
+            'status' => $status,
+            'message' => $message
+        ], $code);
     }
 
-    /**
-     * Get API error message.
-     *
-     * @param Throwable $exception
-     * @return string|array
-     */
-    private function getErrorMessage(
-        Throwable $exception,
-        $request_id,
-    ): string|array {
-        if ($exception instanceof ValidationException) {
-            return $exception->validator->errors()->first();
-        }
-
-        if ($exception instanceof ConnectionException) {
-            return "Server is busy.";
-        }
-
-        if ($exception instanceof AuthenticationException || env("APP_DEBUG")) {
-            return $exception->getMessage();
-        }
-
-        if ($exception instanceof BadRequestException) {
-            return $exception->getMessage();
-        }
-
-        if ($exception instanceof ModelNotFoundException) {
-            return $exception->getMessage();
-        }
-
-        return "Terjadi Kesalahan. Request Id: " . $request_id;
-    }
-
-    /**
-     * Get API error code.
-     *
-     * @param Throwable $exception
-     *
-     * @return int
-     */
-    protected function getApiErrorCode(Throwable $exception): int
+    public function handleException(Throwable $e): JsonResponse
     {
-        if ($exception instanceof ValidationException) {
-            return 422;
+        if ($e instanceof HttpException) {
+            $code = $e->getStatusCode();
+            if (!$message = $e->getMessage())
+                $message = Response::$statusTexts[$code];
+
+            return $this->sendError($message, 'Error', $code);
         }
 
-        if ($exception instanceof BadRequestException) {
-            return 400;
+        if ($e instanceof ModelNotFoundException) {
+            $model = strtolower(class_basename($e->getModel()));
+
+            return $this->sendError("$model not found", 'Error', Response::HTTP_NOT_FOUND);
         }
 
-        if ($exception instanceof ModelNotFoundException) {
-            return 404;
+        if ($e instanceof AuthorizationException) {
+            return $this->sendError($e->getMessage(), 'Error', Response::HTTP_FORBIDDEN);
         }
 
-        if ($exception instanceof HttpExceptionInterface) {
-            return $exception->getStatusCode();
+        if ($e instanceof AuthenticationException) {
+            return $this->sendError($e->getMessage(), 'Error', Response::HTTP_UNAUTHORIZED);
         }
 
-        if ($exception instanceof AuthenticationException) {
-            return 401;
+        if ($e instanceof ValidationException) {
+            $errors = $e->validator->errors()->getMessages();
+
+            return $this->sendError($errors, 'Error',Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        if ($exception instanceof AuthorizationException) {
-            return 403;
+        if (config('app.debug')) {
+            Log::debug($e, ['request' => request()->all()]);
+
+            return $this->sendError($e->getMessage(), 'Error', 500);
         }
 
-        return 500;
+        Log::critical($e, ['request' => request()->all()]);
+
+        return $this->sendError('Unexpected error. Try again later.', 'Error', 500);
     }
 }

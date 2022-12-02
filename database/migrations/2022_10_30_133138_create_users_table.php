@@ -18,10 +18,11 @@ return new class extends Migration
             $table->string("name", 128);
             $table->string("email", 128);
             $table->string("password", 256);
-            $table->string("profile_picture", 256);
+            $table->string("user_type");
+            $table->string("profile_picture", 256)->nullable();
             $table->boolean("is_supervisor")->default(false);
             $table->bigInteger('role_id')->unsigned()->nullable();
-            $table->bigInteger('branch_id')->unsigned();
+            $table->bigInteger('branch_id')->unsigned()->nullable();
             $table->dateTime("created_at");
             $table->dateTime("updated_at");
             $table->dateTime("deleted_at")->nullable();

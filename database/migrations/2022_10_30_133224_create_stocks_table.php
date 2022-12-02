@@ -15,7 +15,19 @@ return new class extends Migration
     {
         Schema::create('stocks', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('mitra_name');
+            $table->string('mitra_wa');
+            $table->unsignedBigInteger('stock_number');
+            $table->string("image", 256)->nullable();
             $table->timestamps();
+            $table->unsignedBigInteger('branch_id');
+
+            $table
+                ->foreign('branch_id')
+                ->on('branches')
+                ->references('id')
+                ->onDelete('cascade');
         });
     }
 

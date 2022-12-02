@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Spend;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -14,6 +15,6 @@ class SpendSeeder extends Seeder
      */
     public function run()
     {
-        //
+        Spend::factory()->count(100)->create();
     }
 }
