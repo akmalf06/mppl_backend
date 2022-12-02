@@ -2,20 +2,63 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use App\Models\User;
+use App\Services\JWTService;
+use Closure;
+use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
-class Authenticate extends Middleware
+class Authenticate
 {
     /**
-     * Get the path the user should be redirected to when they are not authenticated.
+     * Handle an incoming request.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return string|null
+     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
-    protected function redirectTo($request)
+    public function handle(Request $request, Closure $next)
     {
-        if (! $request->expectsJson()) {
-            return route('login');
+        $jwtService = App::make(JWTService::class);
+
+        if (
+            !$jwtService instanceof JWTService
+        ) {
+            throw new Exception("Unknown error on authentication.");
+        }
+
+        // parse model id and model type from token
+        $userId = $jwtService->parseUserId($request->bearerToken() ?? "");
+
+        // get user model
+        $user = User::find($userId);
+        if (!$user) 
+        {
+            throw new AuthenticationException("User not found.");
+        }
+
+        $this->authorize($request->route('branchId'), $user);
+
+        // set user model
+        Auth::login($user);
+        
+        return $next($request);
+    }
+
+    private function authorize(int $branchId, User $user): void
+    {
+        if (
+            $user->user_type !== User::USER_ADMIN ||
+            $user->branch_id !== $branchId
+        ) {
+            throw new AuthorizationException(
+                "Anda tidak berhak mengakses fitur ini",
+            );
         }
     }
 }

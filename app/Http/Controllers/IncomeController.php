@@ -11,7 +11,7 @@ class IncomeController extends Controller
     public function index(Request $request)
     {
         $query = Income::query();
-        $branch_id = 1;
+        $branch_id = $request->route('branchId');
         $query->where('branch_id', $branch_id);
         if($request->input('type'))
         {
@@ -29,9 +29,7 @@ class IncomeController extends Controller
             'amount' => 'required|numeric|digits_between:1,6',
             'branch_id' => 'nullable|numeric|exists:branches,id'
         ]);
-        //TODO
-        //get branch_id from user
-        $branch_id = 1;
+        $branch_id = $request->route('branchId');
         if($request->has('branch_id'))
         {
             $branch_id = $request->input('branch_id');
