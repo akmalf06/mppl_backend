@@ -15,6 +15,10 @@ class Branch extends Model
         'address'
     ];
 
+    protected $cast = [
+        'created_at' => "datetime:Y-m-d"
+    ];
+
     /**
      * Get all of the employee for the Branch
      *

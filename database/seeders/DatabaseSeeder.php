@@ -19,7 +19,8 @@ class DatabaseSeeder extends Seeder
             BranchSeeder::class,
             IncomeSeeder::class,
             SpendSeeder::class,
-            StockSeeder::class
+            StockSeeder::class,
+            UserSeeder::class
         ]);
     }
 }

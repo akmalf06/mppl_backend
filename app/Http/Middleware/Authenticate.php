@@ -41,8 +41,8 @@ class Authenticate
         {
             throw new AuthenticationException("User not found.");
         }
-
-        $this->authorize($request->route('branchId'), $user);
+        $branchId = $request->route('branchId');
+        $this->authorize($user, $branchId);
 
         // set user model
         Auth::login($user);
@@ -50,11 +50,11 @@ class Authenticate
         return $next($request);
     }
 
-    private function authorize(int $branchId, User $user): void
+    private function authorize(User $user, ?int $branchId): void
     {
         if (
-            $user->user_type !== User::USER_ADMIN ||
-            $user->branch_id !== $branchId
+            $user->user_type !== User::USER_ADMIN &&
+            ($branchId && ($user->branch_id !== $branchId)) 
         ) {
             throw new AuthorizationException(
                 "Anda tidak berhak mengakses fitur ini",

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\SpendController;
@@ -20,14 +21,16 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->name('auth.')->group(function(){
     Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
 });
 Route::get('/me', [AuthController::class, 'me'])->middleware('auth')->name('me');
 
 Route::prefix('branch')->name('branch.')->middleware('auth')->group(function(){
     Route::get('/', [BranchController::class, 'index'])->name('index');
-    Route::post('/', [BranchController::class, 'store'])->name('index');
+    Route::post('/', [BranchController::class, 'store'])->name('store');
     Route::prefix('/{branchId}')->group(function(){
         Route::get('/', [BranchController::class, 'show'])->name('show');
+        Route::get('/employee', [BranchController::class, 'employee'])->name('employee');
         Route::prefix('income')->name('income.')->group(function(){
             Route::get('/', [IncomeController::class, 'index'])->name('index');
             Route::post('/', [IncomeController::class, 'store'])->name('store');
@@ -41,6 +44,7 @@ Route::prefix('branch')->name('branch.')->middleware('auth')->group(function(){
         Route::prefix('stock')->name('stock.')->group(function(){
             Route::get('/{id}', [StockController::class, 'show'])->name('show');
             Route::put('/{id}', [StockController::class, 'update'])->name('update');
+            Route::delete('/{id}', [StockController::class, 'destroy'])->name('destroy');
             Route::get('/', [StockController::class, 'index'])->name('index');
             Route::post('/', [StockController::class, 'store'])->name('store');
         });

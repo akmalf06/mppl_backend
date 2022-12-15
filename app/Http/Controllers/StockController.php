@@ -99,4 +99,12 @@ class StockController extends Controller
     
         return $this->sendOk();   
     }
+
+    public function destroy(Request $request)
+    {
+        $stockId = $request->route('id');
+        $stock = Stock::find($stockId);
+        $stock->delete();
+        return $this->sendOk();
+    }
 }

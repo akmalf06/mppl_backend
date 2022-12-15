@@ -3,52 +3,85 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
     public function index()
     {
-        $data = Branch::query()->with(
+        $raw = Branch::query()->with(     
             [
-                "incomes" => function ($query){
-                    $query->selectRaw("SUM(CAST('amount' AS UNSIGNED))");
+                "incomes" => function($query){
+                    $query->select('id', 'amount', 'branch_id');
                 },
-                "spends" => function ($query){
-                    $query->selectRaw("SUM(CAST('amount' AS UNSIGNED))");
-                },
+                "spends" => function($query){
+                    $query->select('id', 'amount', 'branch_id');
+                }
             ]
-        )->get();
-        $this->sendData($data);
+        )->get()->toArray();
+        $data = array_map(
+            function($item){
+                $incomes = collect($item['incomes']);
+                $spends = collect($item['spends']);
+                $total_income = $incomes->sum(
+                    fn($income) => $income['amount']
+                );
+                $total_spend = $spends->sum(
+                    fn($spend) => $spend['amount']
+                );
+                $summary = [
+                    "income" => $total_income,
+                    "spend" => $total_spend
+                ];
+                $item['summary'] = $summary;
+                return $item;
+            },
+            $raw
+        );
+        return $this->sendData($data);
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:128',
-            'address' => 'required|string|max:512'
+            'address' => 'required|string|max:512',
+            "supervisor_id" => 'required|numeric|exists:users,id'
         ]);
 
-        Branch::create([
-            'name' => $request->input('name'),
-            'address' => $request->input('address')
-        ]);
+        DB::beginTransaction();
+        try{
+            Branch::create([
+                'name' => $request->input('name'),
+                'address' => $request->input('address')
+            ]);
+    
+            $user = User::find($request->input('supervisor_id'));
+            $user->is_supervisor = true;
+            $user->save();
+            DB::commit();
+        } catch (\Exception $e){
+            DB::rollBack();
+            throw $e;
+        }
 
         return $this->sendOk();
     }
 
     public function show(Request $request)
     {
-        $branch = Branch::with('income', 'spend')->find($request->route('id'));
+        $branch = Branch::with('incomes', 'spends')->find($request->route('branchId'));
         if(!$branch){
             throw new Exception('Cabang tidak ditemukan');
         }
         $total_income = $branch->incomes->sum(function($income){
-            return (int)$income['amount'];
+            return $income['amount'];
         });
         $total_spend = $branch->spends->sum(function($spend){
-            return (int)$spend['amount'];
+            return $spend['amount'];
         });
         $data = array(
             "name" => $branch->name,
@@ -62,5 +95,11 @@ class BranchController extends Controller
         );
 
         return $this->sendData($data);
+    }
+
+    public function employee(Request $request)
+    {
+        $employee = User::where('branch_id', $request->route('branchId'))->get(['id', 'name']);
+        return $this->sendData($employee);
     }
 }

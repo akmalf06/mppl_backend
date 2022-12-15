@@ -25,12 +25,6 @@ return new class extends Migration
             $table->dateTime("created_at");
             $table->dateTime("updated_at");
             $table->dateTime("deleted_at")->nullable();
-
-            $table
-                ->foreign('role_id')
-                ->references('id')
-                ->on('roles')
-                ->onDelete('cascade');
                 
             $table
                 ->foreign('branch_id')

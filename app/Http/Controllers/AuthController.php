@@ -7,7 +7,6 @@ use App\Services\JWTService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -22,7 +21,7 @@ class AuthController extends Controller
             'email' => 'required|email|max:64',
             'password' => 'required|string|max:64'
         ]);
-        $user = User::where('username', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
         // checking user exist
         if(!$user) {
             throw new AuthenticationException('Akun belum didaftarkan');
@@ -45,7 +44,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:128',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|max:64',
-            'branch_id' => 'required|nummeric|exists:branches,id',
+            'branch_id' => 'required|numeric|exists:branches,id',
         ]);
 
         User::create([
@@ -64,6 +63,8 @@ class AuthController extends Controller
         $user = $request->user();
         return $this->sendData([
             'name' => $user->name,
+            'branch_id' => $user->branch_id,
+            'branch_name' => $user->branch->name,
             'type' => $user->user_type
         ]);
     }

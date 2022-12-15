@@ -25,6 +25,11 @@ class Spend extends Model
         'branch_id'
     ];
 
+    protected $casts = [
+        'amount' => 'integer',
+        'created_at' => "datetime:Y-m-d"
+    ];
+
     /**
      * Get the branch that owns the Income
      *
